@@ -541,6 +541,16 @@ class SupportCollectionTest extends TestCase
         })->all());
     }
 
+    /**
+     * @dataProvider collectionClassProvider
+     */
+    public function testContainsOneItem($collection)
+    {
+        $this->assertFalse((new $collection([]))->containsOneItem());
+        $this->assertTrue((new $collection([1]))->containsOneItem());
+        $this->assertFalse((new $collection([1, 2]))->containsOneItem());
+    }
+
     public function testIterable()
     {
         $c = new Collection(['foo']);
@@ -766,8 +776,10 @@ class SupportCollectionTest extends TestCase
      */
     public function testWhereInstanceOf($collection)
     {
-        $c = new $collection([new stdClass, new stdClass, new $collection, new stdClass]);
+        $c = new $collection([new stdClass, new stdClass, new $collection, new stdClass, new Str]);
         $this->assertCount(3, $c->whereInstanceOf(stdClass::class));
+
+        $this->assertCount(4, $c->whereInstanceOf([stdClass::class, Str::class]));
     }
 
     /**

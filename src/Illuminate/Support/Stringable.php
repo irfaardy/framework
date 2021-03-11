@@ -366,6 +366,17 @@ class Stringable implements JsonSerializable
     }
 
     /**
+     * Determine if the string matches the given pattern.
+     *
+     * @param  string  $pattern
+     * @return bool
+     */
+    public function test($pattern)
+    {
+        return $this->match($pattern)->isNotEmpty();
+    }
+
+    /**
      * Pad both sides of the string with another.
      *
      * @param  int  $length
@@ -607,7 +618,7 @@ class Stringable implements JsonSerializable
     }
 
     /**
-     * Returns the portion of string specified by the start and length parameters.
+     * Returns the portion of the string specified by the start and length parameters.
      *
      * @param  int  $start
      * @param  int|null  $length

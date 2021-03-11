@@ -7,9 +7,11 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use OutOfBoundsException;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\VarDumper\VarDumper;
 
 class HttpClientTest extends TestCase
 {
@@ -52,6 +54,21 @@ class HttpClientTest extends TestCase
         $this->assertSame(['foo' => 'bar'], $response['result']);
         $this->assertIsObject($response->object());
         $this->assertSame('bar', $response->object()->result->foo);
+    }
+
+    public function testResponseCanBeReturnedAsCollection()
+    {
+        $this->factory->fake([
+            '*' => ['result' => ['foo' => 'bar']],
+        ]);
+
+        $response = $this->factory->get('http://foo.com/api');
+
+        $this->assertInstanceOf(Collection::class, $response->collect());
+        $this->assertEquals(collect(['result' => ['foo' => 'bar']]), $response->collect());
+        $this->assertEquals(collect(['foo' => 'bar']), $response->collect('result'));
+        $this->assertEquals(collect(['bar']), $response->collect('result.foo'));
+        $this->assertEquals(collect(), $response->collect('missing_key'));
     }
 
     public function testUrlsCanBeStubbedByPath()
@@ -764,5 +781,24 @@ class HttpClientTest extends TestCase
         $this->expectException(\PHPUnit\Framework\AssertionFailedError::class);
 
         $this->factory->assertSentInOrder($executionOrder);
+    }
+
+    public function testCanDump()
+    {
+        $dumped = [];
+
+        VarDumper::setHandler(function ($value) use (&$dumped) {
+            $dumped[] = $value;
+        });
+
+        $this->factory->fake()->dump(1, 2, 3)->withOptions(['delay' => 1000])->get('http://foo.com');
+
+        $this->assertSame(1, $dumped[0]);
+        $this->assertSame(2, $dumped[1]);
+        $this->assertSame(3, $dumped[2]);
+        $this->assertInstanceOf(Request::class, $dumped[3]);
+        $this->assertSame(1000, $dumped[4]['delay']);
+
+        VarDumper::setHandler(null);
     }
 }

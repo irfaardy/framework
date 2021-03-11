@@ -1,6 +1,6 @@
 <?php
 
-namespace Illuminate\Tests\Foundation;
+namespace Illuminate\Tests\Testing;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\View\View;
@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\Response;
+use Illuminate\Testing\Fluent\AssertableJson;
 use Illuminate\Testing\TestResponse;
 use JsonSerializable;
 use Mockery as m;
@@ -577,6 +578,27 @@ class TestResponseTest extends TestCase
         $response->assertJson($resource->jsonSerialize());
     }
 
+    public function testAssertJsonWithFluent()
+    {
+        $response = TestResponse::fromBaseResponse(new Response(new JsonSerializableSingleResourceStub));
+
+        $response->assertJson(function (AssertableJson $json) {
+            $json->where('0.foo', 'foo 0');
+        });
+    }
+
+    public function testAssertJsonWithFluentStrict()
+    {
+        $response = TestResponse::fromBaseResponse(new Response(new JsonSerializableSingleResourceStub));
+
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage('Unexpected properties were found on the root level.');
+
+        $response->assertJson(function (AssertableJson $json) {
+            $json->where('0.foo', 'foo 0');
+        }, true);
+    }
+
     public function testAssertSimilarJsonWithMixed()
     {
         $response = TestResponse::fromBaseResponse(new Response(new JsonSerializableMixedResourcesStub));
@@ -1048,6 +1070,27 @@ class TestResponseTest extends TestCase
         $response->assertJsonMissingValidationErrors('bar');
     }
 
+    public function testAssertJsonMissingValidationErrorsCanFail3()
+    {
+        $this->expectException(AssertionFailedError::class);
+
+        $baseResponse = tap(new Response, function ($response) {
+            $response->setContent(
+                json_encode([
+                    'data' => [
+                        'errors' => [
+                            'foo' => ['one'],
+                        ],
+                    ],
+                ]),
+            );
+        });
+
+        $response = TestResponse::fromBaseResponse($baseResponse);
+
+        $response->assertJsonMissingValidationErrors('foo', 'data.errors');
+    }
+
     public function testAssertJsonMissingValidationErrorsWithoutArgument()
     {
         $data = ['status' => 'ok'];
@@ -1107,6 +1150,31 @@ class TestResponseTest extends TestCase
         );
 
         $testResponse->assertJsonMissingValidationErrors('bar', 'data');
+    }
+
+    public function testAssertJsonMissingValidationErrorsNestedCustomErrorsName1()
+    {
+        $data = [
+            'status' => 'ok',
+            'data' => [
+                'errors' => ['foo' => 'oops'],
+            ],
+        ];
+
+        $testResponse = TestResponse::fromBaseResponse(
+            (new Response)->setContent(json_encode($data))
+        );
+
+        $testResponse->assertJsonMissingValidationErrors('bar', 'data.errors');
+    }
+
+    public function testAssertJsonMissingValidationErrorsNestedCustomErrorsName2()
+    {
+        $testResponse = TestResponse::fromBaseResponse(
+            (new Response)->setContent(json_encode([]))
+        );
+
+        $testResponse->assertJsonMissingValidationErrors('bar', 'data.errors');
     }
 
     public function testMacroable()
